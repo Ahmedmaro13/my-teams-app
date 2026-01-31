@@ -6,7 +6,7 @@ import shutil
 import json
 
 # --- 1. إعدادات الصفحة ---
-st.set_page_config(page_title="Teams Smart Downloader 🧠", page_icon="🍪")
+st.set_page_config(page_title="Teams Pro Batch 📦", page_icon="🚀")
 
 COOKIE_FILE = 'saved_cookie.json'
 
@@ -27,7 +27,7 @@ def save_new_cookie(cookie_text):
     with open(COOKIE_FILE, 'w') as f:
         json.dump({"cookie": cookie_text}, f)
 
-# --- 3. دالة التحقق من الباسورد ---
+# --- 3. دالة التحقق من الباسورد (Secrets) ---
 def check_password():
     def password_entered():
         if st.session_state["password"] == st.secrets["password"]:
@@ -38,17 +38,17 @@ def check_password():
 
     if "password_correct" not in st.session_state:
         st.header("🔒 Login Required")
-        st.text_input("Enter Password", type="password", on_change=password_entered, key="password")
+        st.text_input("Enter Admin Password", type="password", on_change=password_entered, key="password")
         return False
     elif not st.session_state["password_correct"]:
         st.header("🔒 Login Required")
-        st.text_input("Enter Password", type="password", on_change=password_entered, key="password")
+        st.text_input("Enter Admin Password", type="password", on_change=password_entered, key="password")
         st.error("😕 Password incorrect")
         return False
     else:
         return True
 
-# --- 4. الفوتر ---
+# --- 4. الفوتر (توقيعك) ---
 def show_footer():
     footer_html = """
     <style>
@@ -56,12 +56,12 @@ def show_footer():
     .name {color: #4da6ff; font-weight: bold; text-decoration: none;}
     </style>
     <div class="footer">
-        <p>Developed with ❤️ by <span class="name">Ahmed Elsayed</span> | Smart Cookie Edition</p>
+        <p>Developed with ❤️ by <span class="name">Ahmed Elsayed</span> | Pro Batch Edition</p>
     </div>
     """
     st.markdown(footer_html, unsafe_allow_html=True)
 
-# --- 5. دوال التحميل ---
+# --- 5. دوال مساعدة (Zip & Clear) ---
 def zip_downloads(folder_path, output_filename):
     shutil.make_archive(output_filename, 'zip', folder_path)
     return f"{output_filename}.zip"
@@ -73,52 +73,73 @@ def clear_downloads(folder_path):
 
 # --- 6. التطبيق الرئيسي ---
 def main_app():
+    # زر الخروج
     if st.sidebar.button("Log out 🚪"):
         st.session_state["password_correct"] = False
         st.rerun()
 
-    st.title("🍪 Teams Smart Downloader")
+    st.title("📦 Teams Batch Downloader")
     st.markdown("---")
 
+    # التأكد من FFmpeg
     if not shutil.which("ffmpeg"):
-        st.warning("⚠️ Server is installing FFmpeg...")
+        st.warning("⚠️ Server is installing FFmpeg... please wait.")
 
-    # --- 🧠 الذكاء: تحميل الكوكي القديم ---
+    # تحميل الكوكي القديم (لو موجود)
     saved_cookie = load_saved_cookie()
     
-    # رسالة تطمين لو لقى كوكي
-    if saved_cookie:
-        st.success("✅ Found a saved cookie! Using it automatically.")
-    else:
-        st.info("ℹ️ No saved cookie found. Please enter it once.")
+    # === القسم الأول: إعدادات الكوكيز ===
+    st.subheader("1️⃣ Configuration")
+    
+    # ملحوظة: value=saved_cookie بتعرض الكوكي القديم في الخانة
+    cookie_input = st.text_input("🍪 Cookie (Paste here)", value=saved_cookie)
+    
+    # زرار الحفظ المستقل
+    if st.button("Save Cookie Only 💾"):
+        if cookie_input.strip():
+            save_new_cookie(cookie_input)
+            st.success("✅ Cookie saved successfully!")
+            time.sleep(1) 
+            st.rerun() # تحديث الصفحة لتأكيد الحفظ
+        else:
+            st.warning("⚠️ Cookie field is empty!")
 
-    # خانة الكوكيز (بتتملي لوحدها لو فيه محفوظ)
-    cookie_input = st.text_input("🍪 Cookie (Auto-Saved)", value=saved_cookie, placeholder="Paste Cookie Here...")
+    st.markdown("---")
 
-    urls_text = st.text_area("🔗 Video URLs (Line by line)", height=150)
+    # === القسم الثاني: التحميل ===
+    st.subheader("2️⃣ Downloads")
+    urls_text = st.text_area("🔗 Video URLs (Paste links line by line)", height=150)
     option = st.radio("Choose Format:", ("Video (MP4)", "Audio (MP3)"), horizontal=True)
 
-    # زر التشغيل
+    # زرار بدء التحميل
     if st.button("Start Batch Download 🚀", type="primary"):
-        if not cookie_input or not urls_text.strip():
-            st.warning("⚠️ Please enter Cookie and URLs!")
+        # بنستخدم الكوكي اللي في الخانة، أو المحفوظ لو الخانة فاضية (احتياطي)
+        final_cookie = cookie_input or saved_cookie
+        
+        if not final_cookie:
+            st.error("⚠️ Please save a cookie first in Step 1!")
+            return
+            
+        if not urls_text.strip():
+            st.warning("⚠️ Please enter video URLs in Step 2!")
             return
 
-        # 🔥 حفظ الكوكيز الجديد فوراً 🔥
-        # (لو هو هو القديم هيحفظه تاني، لو اتغير هيحدثه)
-        save_new_cookie(cookie_input)
+        # حفظ الكوكيز احتياطي برضه لو المستخدم نسي يدوس Save فوق
+        save_new_cookie(final_cookie)
         
         url_list = urls_text.strip().split('\n')
         total_links = len(url_list)
         
+        # تجهيز المجلدات
         download_folder = "downloads"
         clear_downloads(download_folder)
 
-        st.info(f"🚀 Processing {total_links} files...")
+        st.info(f"🚀 Starting download for {total_links} files...")
         progress_bar = st.progress(0)
         status_text = st.empty()
         success_count = 0
 
+        # حلقة التحميل
         for i, url in enumerate(url_list):
             url = url.strip()
             if not url: continue
@@ -129,11 +150,13 @@ def main_app():
             ydl_opts = {
                 'http_headers': {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Cookie': cookie_input, # استخدام الكوكي من الخانة
+                    'Cookie': final_cookie,
                     'Referer': 'https://aastpg.sharepoint.com/',
                 },
                 'restrictfilenames': True, 'windowsfilenames': True,
-                'outtmpl': f'{download_folder}/{current_num}_%(title)s.%(ext)s', 'quiet': True,
+                # 🔥 الترقيم لمنع استبدال الملفات 🔥
+                'outtmpl': f'{download_folder}/{current_num}_%(title)s.%(ext)s', 
+                'quiet': True,
             }
 
             if option == "Audio (MP3)":
@@ -147,21 +170,27 @@ def main_app():
                     ydl.download([url])
                 success_count += 1
             except Exception as e:
-                st.error(f"❌ Error: {e}")
+                st.error(f"❌ Error in Link {current_num}: {e}")
             
             progress_bar.progress(current_num / total_links)
 
+        # النهاية والضغط
         if success_count > 0:
-            status_text.success("✅ Done! Zipping...")
+            status_text.success("✅ All Done! Zipping files...")
             zip_file = zip_downloads(download_folder, "Lectures_Bundle")
+            
             with open(zip_file, "rb") as f:
-                st.download_button("📥 Download ZIP", f, file_name=f"Lectures_{int(time.time())}.zip", mime="application/zip")
+                st.download_button(
+                    label=f"📥 Download {success_count} Files (ZIP)",
+                    data=f,
+                    file_name=f"Lectures_{int(time.time())}.zip",
+                    mime="application/zip"
+                )
         else:
-            status_text.error("❌ Failed. Check Cookie!")
+            status_text.error("❌ Failed to download files. Check your Cookie!")
 
     show_footer()
 
 # --- التشغيل ---
 if check_password():
     main_app()
-
