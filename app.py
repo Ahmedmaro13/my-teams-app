@@ -133,7 +133,7 @@ def main_app():
                     'Referer': 'https://aastpg.sharepoint.com/',
                 },
                 'restrictfilenames': True, 'windowsfilenames': True,
-                'outtmpl': f'{download_folder}/%(title)s.%(ext)s', 'quiet': True,
+                'outtmpl': f'{download_folder}/{current_num}_%(title)s.%(ext)s', 'quiet': True,
             }
 
             if option == "Audio (MP3)":
@@ -164,3 +164,4 @@ def main_app():
 # --- التشغيل ---
 if check_password():
     main_app()
+
