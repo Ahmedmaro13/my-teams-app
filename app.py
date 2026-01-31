@@ -4,144 +4,107 @@ import os
 import time
 import shutil
 
-# --- 1. إعدادات الصفحة والتصميم ---
-st.set_page_config(page_title="Teams Downloader 🔒", page_icon="🛡️")
+# --- إعدادات الصفحة ---
+st.set_page_config(page_title="Teams Batch Downloader 📦", page_icon="🚀")
+st.title("🚀 Teams Batch Downloader")
 
-# إخفاء القائمة الجانبية وعلامة Streamlit الافتراضية
-hide_st_style = """
-            <style>
-            #MainMenu {visibility: hidden;}
-            footer {visibility: hidden;}
-            header {visibility: hidden;}
-            </style>
-            """
-st.markdown(hide_st_style, unsafe_allow_html=True)
+# --- دالة ضغط الملفات (ZIP) ---
+def zip_downloads(folder_path, output_filename):
+    shutil.make_archive(output_filename, 'zip', folder_path)
+    return f"{output_filename}.zip"
 
-# --- 2. دالة الفوتر (التوقيع الشيك) ---
-def show_footer():
-    footer_html = """
-    <style>
-    .footer {
-        position: fixed;
-        left: 0;
-        bottom: 0;
-        width: 100%;
-        background-color: #0E1117;
-        color: #FAFAFA;
-        text-align: center;
-        padding: 10px;
-        font-family: 'Segoe UI', sans-serif;
-        border-top: 1px solid #333;
-        z-index: 1000;
-    }
-    .heart {color: #e25555;}
-    .name {
-        color: #4da6ff; /* لون لبني مميز للاسم */
-        font-weight: bold;
-        text-decoration: none;
-    }
-    </style>
-    <div class="footer">
-        <p>Developed with <span class="heart">❤</span> by <a href="#" class="name">Ahmed Elsayed</a> | Teams Downloader Pro</p>
-    </div>
-    """
-    st.markdown(footer_html, unsafe_allow_html=True)
+# --- دالة تنظيف المجلد ---
+def clear_downloads(folder_path):
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
+    os.makedirs(folder_path)
 
-# --- 3. دالة التحقق من الباسورد ---
-def check_password():
-    """Returns `True` if the user had a correct password."""
+# --- الواجهة ---
+if not shutil.which("ffmpeg"):
+    st.warning("⚠️ جاري إعداد السيرفر... انتظر دقيقة.")
 
-    def password_entered():
-        """Checks whether a password entered by the user is correct."""
-        if st.session_state["username"] in st.secrets["users"] and \
-           st.session_state["password"] == st.secrets["users"][st.session_state["username"]]:
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # حذف الباسورد من الذاكرة للأمان
-        else:
-            st.session_state["password_correct"] = False
+# 1. إدخال الكوكيز (مرة واحدة للكل)
+cookie = st.text_input("🍪 Cookie (One for all)", placeholder="Paste Cookie Here...")
 
-    if "password_correct" not in st.session_state:
-        # أول مرة يفتح الموقع
-        st.header("🔒 Login Required")
-        st.text_input("Username", key="username")
-        st.text_input("Password", type="password", on_change=password_entered, key="password")
-        show_footer()
-        return False
-    elif not st.session_state["password_correct"]:
-        # باسورد غلط
-        st.header("🔒 Login Required")
-        st.text_input("Username", key="username")
-        st.text_input("Password", type="password", on_change=password_entered, key="password")
-        st.error("😕 User not known or password incorrect")
-        show_footer()
-        return False
+# 2. إدخال الروابط (مربع كبير)
+urls_text = st.text_area("🔗 Video URLs (Link per line)", height=150, placeholder="Link 1\nLink 2\nLink 3...")
+
+# 3. الخيارات
+option = st.radio("Choose Format:", ("Video (MP4)", "Audio (MP3)"))
+
+# --- زر التشغيل ---
+if st.button("Start Batch Download 🚀"):
+    if not cookie or not urls_text.strip():
+        st.warning("⚠️ Please enter Cookie and at least one URL")
     else:
-        # تم الدخول بنجاح
-        return True
+        # تحويل النص لقائمة روابط
+        url_list = urls_text.strip().split('\n')
+        total_links = len(url_list)
+        
+        st.info(f"📦 Found {total_links} links. Starting process...")
+        
+        # تجهيز المجلد
+        download_folder = "downloads"
+        clear_downloads(download_folder) # تنظيف القديم
 
-# --- 4. التطبيق الرئيسي (اللي كان عندك قبل كدا) ---
-def main_app():
-    st.title("🚀 Teams Downloader (Cloud)")
-    
-    # زرار لتسجيل الخروج
-    if st.sidebar.button("Log out"):
-        st.session_state["password_correct"] = False
-        st.rerun()
+        # شريط تقدم عام
+        progress_bar = st.progress(0)
+        status_text = st.empty()
 
-    if not shutil.which("ffmpeg"):
-        st.warning("⚠️ جاري إعداد السيرفر... انتظر دقيقة.")
+        success_count = 0
+        
+        # --- بداية اللوب (Loop) ---
+        for i, url in enumerate(url_list):
+            url = url.strip()
+            if not url: continue # تخطي الأسطر الفارغة
+            
+            current_num = i + 1
+            status_text.write(f"⏳ Processing {current_num}/{total_links}...")
+            
+            # إعدادات التحميل (نفس القديمة)
+            ydl_opts = {
+                'http_headers': {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                    'Cookie': cookie,
+                    'Referer': 'https://aastpg.sharepoint.com/',
+                },
+                'restrictfilenames': True,
+                'windowsfilenames': True,
+                'outtmpl': f'{download_folder}/%(title)s.%(ext)s',
+                'quiet': True, # عشان ميعملش دوشة في اللوج
+            }
 
-    url = st.text_input("🔗 Video URL", placeholder="Paste Teams Link Here...")
-    cookie = st.text_input("🍪 Cookie", placeholder="Paste Cookie Here...")
-    option = st.radio("Choose Format:", ("Video (MP4)", "Audio (MP3)"))
+            if option == "Audio (MP3)":
+                ydl_opts['format'] = 'bestaudio/best'
+                ydl_opts['postprocessors'] = [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}]
+            else:
+                ydl_opts['format'] = 'bestvideo+bestaudio/best'
 
-    if st.button("Start 🚀"):
-        if url and cookie:
-            # هنا كود التحميل (مختصر للحفاظ على المساحة - هو نفس الكود السابق)
-            download_media(url, cookie, option)
+            try:
+                with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                    ydl.download([url])
+                success_count += 1
+            except Exception as e:
+                st.error(f"❌ Failed Link {current_num}: {e}")
+            
+            # تحديث شريط التقدم
+            progress_bar.progress(current_num / total_links)
+
+        # --- النهاية ---
+        if success_count > 0:
+            st.success(f"✅ Completed! {success_count}/{total_links} files downloaded.")
+            
+            # ضغط الملفات كلها في ملف واحد
+            status_text.write("🗜️ Zipping files... please wait.")
+            zip_file = zip_downloads(download_folder, "My_Lectures")
+            
+            # زر تحميل الـ ZIP
+            with open(zip_file, "rb") as f:
+                st.download_button(
+                    label="📥 Download All (ZIP)",
+                    data=f,
+                    file_name=f"Lectures_Batch_{int(time.time())}.zip",
+                    mime="application/zip"
+                )
         else:
-            st.warning("⚠️ Please enter URL & Cookie")
-
-    show_footer()
-
-def download_media(url, cookie, option):
-    # (نفس دالة التحميل السابقة تماماً - انسخها هنا)
-    timestamp = int(time.time())
-    download_folder = "downloads"
-    if not os.path.exists(download_folder):
-        os.makedirs(download_folder)
-
-    ydl_opts = {
-        'http_headers': {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-            'Cookie': cookie,
-            'Referer': 'https://aastpg.sharepoint.com/',
-        },
-        'restrictfilenames': True,
-        'windowsfilenames': True,
-        'outtmpl': f'{download_folder}/%(title)s.%(ext)s',
-    }
-
-    if option == "Audio (MP3)":
-        ydl_opts['format'] = 'bestaudio/best'
-        ydl_opts['postprocessors'] = [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}]
-    else:
-        ydl_opts['format'] = 'bestvideo+bestaudio/best'
-
-    try:
-        with st.spinner('⏳ Downloading... (Please wait)'):
-            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                info = ydl.extract_info(url, download=True)
-                filename = ydl.prepare_filename(info)
-                if option == "Audio (MP3)": filename = os.path.splitext(filename)[0] + ".mp3"
-
-        if os.path.exists(filename):
-            with open(filename, "rb") as file:
-                st.success("✅ Finished!")
-                st.download_button(label="📥 Download File", data=file, file_name=os.path.basename(filename), mime="application/octet-stream")
-    except Exception as e:
-        st.error(f"❌ Error: {e}")
-
-# --- 5. التشغيل ---
-if check_password():
-    main_app()
+            st.error("❌ No files were downloaded successfully.")
