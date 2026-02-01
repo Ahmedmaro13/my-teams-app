@@ -9,7 +9,8 @@ import json
 st.set_page_config(page_title="Teams Pro Batch 📦", page_icon="🚀")
 
 COOKIE_FILE = 'saved_cookie.json'
-ZIP_NAME = "Lectures_Bundle" # الاسم الثابت للملف المضغوط
+TEMP_COOKIE_FILE = 'temp_cookies.txt' # ملف الكوكيز المؤقت عشان yt-dlp
+ZIP_NAME = "Lectures_Bundle" 
 
 # --- 2. دوال حفظ واسترجاع الكوكيز ---
 def load_saved_cookie():
@@ -27,6 +28,28 @@ def save_new_cookie(cookie_text):
     """حفظ الكوكي الجديد في ملف"""
     with open(COOKIE_FILE, 'w') as f:
         json.dump({"cookie": cookie_text}, f)
+
+def create_netscape_cookie_file(raw_cookie_str):
+    """
+    🔥 دالة جديدة 🔥
+    بتحول نص الكوكيز العادي لملف Netscape Format عشان التحذير يختفي
+    """
+    domain = ".sharepoint.com" # النطاق العام
+    with open(TEMP_COOKIE_FILE, 'w') as f:
+        f.write("# Netscape HTTP Cookie File\n")
+        f.write("# This is a generated file!  Do not edit.\n\n")
+        
+        # تقسيم النص الطويل لحتت صغيرة (key=value)
+        if raw_cookie_str:
+            for item in raw_cookie_str.split(';'):
+                if '=' in item:
+                    try:
+                        name, value = item.strip().split('=', 1)
+                        # domain - flag - path - secure - expiration - name - value
+                        f.write(f"{domain}\tTRUE\t/\tTRUE\t2147483647\t{name}\t{value}\n")
+                    except:
+                        continue
+    return TEMP_COOKIE_FILE
 
 # --- 3. دالة التحقق من الباسورد (Secrets) ---
 def check_password():
@@ -49,7 +72,7 @@ def check_password():
     else:
         return True
 
-# --- 4. الفوتر (توقيعك) ---
+# --- 4. الفوتر ---
 def show_footer():
     footer_html = """
     <style>
@@ -62,7 +85,7 @@ def show_footer():
     """
     st.markdown(footer_html, unsafe_allow_html=True)
 
-# --- 5. دوال مساعدة (Zip & Clear) ---
+# --- 5. دوال مساعدة ---
 def zip_downloads(folder_path, output_filename):
     shutil.make_archive(output_filename, 'zip', folder_path)
     return f"{output_filename}.zip"
@@ -74,7 +97,6 @@ def clear_downloads(folder_path):
 
 # --- 6. التطبيق الرئيسي ---
 def main_app():
-    # زر الخروج
     if st.sidebar.button("Log out 🚪"):
         st.session_state["password_correct"] = False
         st.rerun()
@@ -82,25 +104,21 @@ def main_app():
     st.title("📦 Teams Batch Downloader")
     st.markdown("---")
 
-    # التأكد من FFmpeg
     if not shutil.which("ffmpeg"):
         st.warning("⚠️ Server is installing FFmpeg... please wait.")
 
-    # تحميل الكوكي القديم
     saved_cookie = load_saved_cookie()
     
     # === القسم الأول: إعدادات الكوكيز ===
     st.subheader("1️⃣ Configuration")
-    
     cookie_input = st.text_input("🍪 Cookie (Paste here)", value=saved_cookie)
     
-    # زرار الحفظ المستقل
     if st.button("Save Cookie Only 💾"):
         if cookie_input.strip():
             save_new_cookie(cookie_input)
             st.success("✅ Cookie saved successfully!")
             time.sleep(1) 
-            st.rerun() # تحديث الصفحة لتأكيد الحفظ
+            st.rerun() 
         else:
             st.warning("⚠️ Cookie field is empty!")
 
@@ -109,11 +127,10 @@ def main_app():
     # === القسم الثاني: التحميل ===
     st.subheader("2️⃣ Downloads")
 
-    # 🔥 ميزة استعادة التحميل (Resume) مع حماية ضد التهنيج 🔥
+    # 🔥 استعادة التحميل (Anti-Crash) 🔥
     existing_zip = f"{ZIP_NAME}.zip"
     if os.path.exists(existing_zip):
         try:
-            # بنحاول نفتح الملف عشان نتأكد إنه سليم
             with open(existing_zip, "rb") as f:
                 st.info("💡 **Found a finished download!** (You can download it now)")
                 st.download_button(
@@ -125,16 +142,13 @@ def main_app():
                 )
             st.markdown("---")
         except Exception:
-            # 🚨 لو الملف بايظ (بسبب قطع النت)، امسحه فوراً عشان الموقع يفتح
-            os.remove(existing_zip)
-            # مش هنظهر رسالة خطأ عشان المستخدم ميتخضش، هو هيلاقي الخانة فاضية ويحمل تاني عادي
+            os.remove(existing_zip) 
 
     urls_text = st.text_area("🔗 Video URLs (Paste links line by line)", height=150)
     option = st.radio("Choose Format:", ("Video (MP4)", "Audio (MP3)"), horizontal=True)
 
     # زرار بدء التحميل
     if st.button("Start Batch Download 🚀", type="primary"):
-        # بنستخدم الكوكي اللي في الخانة، أو المحفوظ لو الخانة فاضية
         final_cookie = cookie_input or saved_cookie
         
         if not final_cookie:
@@ -145,13 +159,14 @@ def main_app():
             st.warning("⚠️ Please enter video URLs in Step 2!")
             return
 
-        # حفظ الكوكيز احتياطي
         save_new_cookie(final_cookie)
+        
+        # 🔥 إنشاء ملف الكوكيز المؤقت (عشان التحذير يختفي) 🔥
+        create_netscape_cookie_file(final_cookie)
         
         url_list = urls_text.strip().split('\n')
         total_links = len(url_list)
         
-        # تجهيز المجلدات
         download_folder = "downloads"
         clear_downloads(download_folder)
 
@@ -160,7 +175,6 @@ def main_app():
         status_text = st.empty()
         success_count = 0
 
-        # حلقة التحميل
         for i, url in enumerate(url_list):
             url = url.strip()
             if not url: continue
@@ -171,13 +185,16 @@ def main_app():
             ydl_opts = {
                 'http_headers': {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    'Cookie': final_cookie,
+                    # ❌ شيلنا الكوكيز من هنا عشان التحذير
                     'Referer': 'https://aastpg.sharepoint.com/',
                 },
+                # ✅ وضفناها هنا كملف رسمي
+                'cookiefile': TEMP_COOKIE_FILE,
+                
                 'restrictfilenames': True, 'windowsfilenames': True,
-                # 🔥 الترقيم لمنع استبدال الملفات 🔥
                 'outtmpl': f'{download_folder}/{current_num}_%(title)s.%(ext)s', 
                 'quiet': True,
+                'no_warnings': True, # زيادة تأكيد لإخفاء التحذيرات
             }
 
             if option == "Audio (MP3)":
@@ -195,11 +212,13 @@ def main_app():
             
             progress_bar.progress(current_num / total_links)
 
-        # النهاية والضغط
+        # تنظيف الملف المؤقت
+        if os.path.exists(TEMP_COOKIE_FILE):
+            os.remove(TEMP_COOKIE_FILE)
+
         if success_count > 0:
             status_text.success("✅ All Done! Zipping files...")
             
-            # ضغط الملفات بالاسم الثابت
             zip_file = zip_downloads(download_folder, ZIP_NAME)
             
             with open(zip_file, "rb") as f:
