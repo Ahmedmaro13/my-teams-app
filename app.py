@@ -204,9 +204,15 @@ def main_app():
                 ydl_opts['format'] = 'bestaudio/best'
                 ydl_opts['postprocessors'] = [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}]
             elif "480p" in format_option:
-                ydl_opts['format'] = 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best'
+                # التعديل: شيلنا شرط [ext=mp4] عشان يقبل أي صيغة متاحة ويحولها هو
+                ydl_opts['format'] = 'bestvideo[height<=480]+bestaudio/best[height<=480]/best'
+                # أمر إضافي: دمج الصوت والصورة وإخراج الناتج MP4 غصب عنه
+                ydl_opts['merge_output_format'] = 'mp4'
+            
             else:
-                ydl_opts['format'] = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best'
+                # نفس الكلام للـ 720p
+                ydl_opts['format'] = 'bestvideo[height<=720]+bestaudio/best[height<=720]/best'
+                ydl_opts['merge_output_format'] = 'mp4'
 
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -256,3 +262,4 @@ def main_app():
 
 if check_password():
     main_app()
+
