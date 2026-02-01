@@ -64,7 +64,6 @@ def show_footer():
 
 # --- 5. دوال مساعدة (Zip & Clear) ---
 def zip_downloads(folder_path, output_filename):
-    # الدالة دي بتعمل ملف zip باسم output_filename.zip
     shutil.make_archive(output_filename, 'zip', folder_path)
     return f"{output_filename}.zip"
 
@@ -110,20 +109,25 @@ def main_app():
     # === القسم الثاني: التحميل ===
     st.subheader("2️⃣ Downloads")
 
-    # 🔥 ميزة استعادة التحميل (Resume) 🔥
-    # لو فيه ملف zip موجود من قبل كدة (مثلاً النت قطع)، اظهره علطول
+    # 🔥 ميزة استعادة التحميل (Resume) مع حماية ضد التهنيج 🔥
     existing_zip = f"{ZIP_NAME}.zip"
     if os.path.exists(existing_zip):
-        st.info("💡 **Found a finished download!** (Did you refresh? You can download it now)")
-        with open(existing_zip, "rb") as f:
-            st.download_button(
-                label="🔄 Resume Download (Last Zip)",
-                data=f,
-                file_name=f"Lectures_Recovered_{int(time.time())}.zip",
-                mime="application/zip",
-                type="secondary"
-            )
-        st.markdown("---")
+        try:
+            # بنحاول نفتح الملف عشان نتأكد إنه سليم
+            with open(existing_zip, "rb") as f:
+                st.info("💡 **Found a finished download!** (You can download it now)")
+                st.download_button(
+                    label="🔄 Resume Download (Last Zip)",
+                    data=f,
+                    file_name=f"Lectures_Recovered_{int(time.time())}.zip",
+                    mime="application/zip",
+                    type="secondary"
+                )
+            st.markdown("---")
+        except Exception:
+            # 🚨 لو الملف بايظ (بسبب قطع النت)، امسحه فوراً عشان الموقع يفتح
+            os.remove(existing_zip)
+            # مش هنظهر رسالة خطأ عشان المستخدم ميتخضش، هو هيلاقي الخانة فاضية ويحمل تاني عادي
 
     urls_text = st.text_area("🔗 Video URLs (Paste links line by line)", height=150)
     option = st.radio("Choose Format:", ("Video (MP4)", "Audio (MP3)"), horizontal=True)
@@ -195,7 +199,7 @@ def main_app():
         if success_count > 0:
             status_text.success("✅ All Done! Zipping files...")
             
-            # ضغط الملفات بالاسم الثابت عشان نقدر نسترجعه لو النت قطع
+            # ضغط الملفات بالاسم الثابت
             zip_file = zip_downloads(download_folder, ZIP_NAME)
             
             with open(zip_file, "rb") as f:
