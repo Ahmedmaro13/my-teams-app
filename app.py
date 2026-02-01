@@ -31,21 +31,18 @@ def save_new_cookie(cookie_text):
 
 def create_netscape_cookie_file(raw_cookie_str):
     """
-    🔥 دالة جديدة 🔥
-    بتحول نص الكوكيز العادي لملف Netscape Format عشان التحذير يختفي
+    🔥 تحويل نص الكوكيز لملف Netscape Format لإخفاء التحذيرات
     """
     domain = ".sharepoint.com" # النطاق العام
     with open(TEMP_COOKIE_FILE, 'w') as f:
         f.write("# Netscape HTTP Cookie File\n")
         f.write("# This is a generated file!  Do not edit.\n\n")
         
-        # تقسيم النص الطويل لحتت صغيرة (key=value)
         if raw_cookie_str:
             for item in raw_cookie_str.split(';'):
                 if '=' in item:
                     try:
                         name, value = item.strip().split('=', 1)
-                        # domain - flag - path - secure - expiration - name - value
                         f.write(f"{domain}\tTRUE\t/\tTRUE\t2147483647\t{name}\t{value}\n")
                     except:
                         continue
@@ -101,7 +98,7 @@ def main_app():
         st.session_state["password_correct"] = False
         st.rerun()
 
-    st.title("📦 Teams Batch Downloader")
+    st.title("📦 Teams Downloader")
     st.markdown("---")
 
     if not shutil.which("ffmpeg"):
@@ -127,7 +124,7 @@ def main_app():
     # === القسم الثاني: التحميل ===
     st.subheader("2️⃣ Downloads")
 
-    # 🔥 استعادة التحميل (Anti-Crash) 🔥
+    # 🔥 استعادة التحميل (Anti-Crash Logic) 🔥
     existing_zip = f"{ZIP_NAME}.zip"
     if os.path.exists(existing_zip):
         try:
@@ -142,10 +139,17 @@ def main_app():
                 )
             st.markdown("---")
         except Exception:
+            # لو الملف بايظ امسحه عشان الموقع يفتح
             os.remove(existing_zip) 
 
     urls_text = st.text_area("🔗 Video URLs (Paste links line by line)", height=150)
-    option = st.radio("Choose Format:", ("Video (MP4)", "Audio (MP3)"), horizontal=True)
+    
+    # 🔥🔥🔥 التعديل الجديد: 3 خيارات للجودة 🔥🔥🔥
+    format_option = st.radio(
+        "Choose Quality:",
+        ("🎥 Video (720p - HD)", "📱 Video (480p - Fast)", "🎧 Audio Only (MP3)"),
+        horizontal=True
+    )
 
     # زرار بدء التحميل
     if st.button("Start Batch Download 🚀", type="primary"):
@@ -161,7 +165,7 @@ def main_app():
 
         save_new_cookie(final_cookie)
         
-        # 🔥 إنشاء ملف الكوكيز المؤقت (عشان التحذير يختفي) 🔥
+        # إنشاء ملف الكوكيز المؤقت
         create_netscape_cookie_file(final_cookie)
         
         url_list = urls_text.strip().split('\n')
@@ -182,26 +186,32 @@ def main_app():
             current_num = i + 1
             status_text.markdown(f"**⏳ Processing {current_num}/{total_links}...**")
             
+            # إعدادات أساسية لـ yt-dlp
             ydl_opts = {
                 'http_headers': {
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                    # ❌ شيلنا الكوكيز من هنا عشان التحذير
-                    'Referer': 'https://aastpg.sharepoint.com/',
                 },
-                # ✅ وضفناها هنا كملف رسمي
-                'cookiefile': TEMP_COOKIE_FILE,
-                
-                'restrictfilenames': True, 'windowsfilenames': True,
+                'cookiefile': TEMP_COOKIE_FILE, # استخدام الملف المؤقت
+                'restrictfilenames': True, 
+                'windowsfilenames': True,
                 'outtmpl': f'{download_folder}/{current_num}_%(title)s.%(ext)s', 
                 'quiet': True,
-                'no_warnings': True, # زيادة تأكيد لإخفاء التحذيرات
+                'no_warnings': True,
             }
 
-            if option == "Audio (MP3)":
+            # 🔥 ضبط الجودة حسب الاختيار 🔥
+            if "Audio" in format_option:
+                # خيار MP3
                 ydl_opts['format'] = 'bestaudio/best'
                 ydl_opts['postprocessors'] = [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}]
+            
+            elif "480p" in format_option:
+                # خيار 480 (السريع)
+                ydl_opts['format'] = 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best'
+            
             else:
-                ydl_opts['format'] = 'bestvideo+bestaudio/best'
+                # خيار 720 (الافتراضي)
+                ydl_opts['format'] = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best'
 
             try:
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
