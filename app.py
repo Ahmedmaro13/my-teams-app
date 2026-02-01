@@ -6,7 +6,7 @@ import shutil
 import json
 
 # --- 1. إعدادات الصفحة ---
-st.set_page_config(page_title="Teams Pro Batch 📦", page_icon="🚀")
+st.set_page_config(page_title="Teams VIP 📦", page_icon="🚀")
 
 COOKIE_FILE = 'saved_cookie.json'
 TEMP_COOKIE_FILE = 'temp_cookies.txt'
@@ -164,7 +164,7 @@ def main_app():
         horizontal=True
     )
 
-    if st.button("Start Batch Download 🚀", type="primary"):
+    if st.button("Start Download 🚀", type="primary"):
         final_cookie = cookie_input or saved_cookie
         
         if not final_cookie:
@@ -276,3 +276,4 @@ def main_app():
 
 if check_password():
     main_app()
+
