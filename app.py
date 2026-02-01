@@ -116,7 +116,7 @@ def main_app():
         st.session_state["password_correct"] = False
         st.rerun()
 
-    st.title("📦 Teams Batch Downloader")
+    st.title("📦 Teams Downloader")
     st.markdown("---")
 
     if not shutil.which("ffmpeg"):
@@ -276,4 +276,5 @@ def main_app():
 
 if check_password():
     main_app()
+
 
