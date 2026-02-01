@@ -9,7 +9,7 @@ import json
 st.set_page_config(page_title="Teams Pro Batch 📦", page_icon="🚀")
 
 COOKIE_FILE = 'saved_cookie.json'
-TEMP_COOKIE_FILE = 'temp_cookies.txt' # ملف الكوكيز المؤقت عشان yt-dlp
+TEMP_COOKIE_FILE = 'temp_cookies.txt' # ملف الكوكيز المؤقت
 ZIP_NAME = "Lectures_Bundle" 
 
 # --- 2. دوال حفظ واسترجاع الكوكيز ---
@@ -30,10 +30,8 @@ def save_new_cookie(cookie_text):
         json.dump({"cookie": cookie_text}, f)
 
 def create_netscape_cookie_file(raw_cookie_str):
-    """
-    🔥 تحويل نص الكوكيز لملف Netscape Format لإخفاء التحذيرات
-    """
-    domain = ".sharepoint.com" # النطاق العام
+    """تحويل نص الكوكيز لملف Netscape Format لإخفاء التحذيرات"""
+    domain = ".sharepoint.com"
     with open(TEMP_COOKIE_FILE, 'w') as f:
         f.write("# Netscape HTTP Cookie File\n")
         f.write("# This is a generated file!  Do not edit.\n\n")
@@ -98,7 +96,7 @@ def main_app():
         st.session_state["password_correct"] = False
         st.rerun()
 
-    st.title("📦 Teams Downloader")
+    st.title("📦 Teams Batch Downloader")
     st.markdown("---")
 
     if not shutil.which("ffmpeg"):
@@ -124,7 +122,7 @@ def main_app():
     # === القسم الثاني: التحميل ===
     st.subheader("2️⃣ Downloads")
 
-    # 🔥 استعادة التحميل (Anti-Crash Logic) 🔥
+    # زرار الاستكمال (بيظهر بس لو فيه ملف قديم موجود)
     existing_zip = f"{ZIP_NAME}.zip"
     if os.path.exists(existing_zip):
         try:
@@ -139,12 +137,11 @@ def main_app():
                 )
             st.markdown("---")
         except Exception:
-            # لو الملف بايظ امسحه عشان الموقع يفتح
             os.remove(existing_zip) 
 
     urls_text = st.text_area("🔗 Video URLs (Paste links line by line)", height=150)
     
-    # 🔥🔥🔥 التعديل الجديد: 3 خيارات للجودة 🔥🔥🔥
+    # خيارات الجودة الثلاثة
     format_option = st.radio(
         "Choose Quality:",
         ("🎥 Video (720p - HD)", "📱 Video (480p - Fast)", "🎧 Audio Only (MP3)"),
@@ -163,9 +160,11 @@ def main_app():
             st.warning("⚠️ Please enter video URLs in Step 2!")
             return
 
+        # 🧹 تنظيف: مسح أي ملف ZIP قديم فوراً عشان نبدأ على نظافة
+        if os.path.exists(existing_zip):
+            os.remove(existing_zip)
+
         save_new_cookie(final_cookie)
-        
-        # إنشاء ملف الكوكيز المؤقت
         create_netscape_cookie_file(final_cookie)
         
         url_list = urls_text.strip().split('\n')
@@ -186,12 +185,10 @@ def main_app():
             current_num = i + 1
             status_text.markdown(f"**⏳ Processing {current_num}/{total_links}...**")
             
-            # إعدادات أساسية لـ yt-dlp
+            # إعدادات yt-dlp
             ydl_opts = {
-                'http_headers': {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                },
-                'cookiefile': TEMP_COOKIE_FILE, # استخدام الملف المؤقت
+                'http_headers': {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'},
+                'cookiefile': TEMP_COOKIE_FILE,
                 'restrictfilenames': True, 
                 'windowsfilenames': True,
                 'outtmpl': f'{download_folder}/{current_num}_%(title)s.%(ext)s', 
@@ -199,18 +196,13 @@ def main_app():
                 'no_warnings': True,
             }
 
-            # 🔥 ضبط الجودة حسب الاختيار 🔥
+            # تطبيق الجودة المختارة
             if "Audio" in format_option:
-                # خيار MP3
                 ydl_opts['format'] = 'bestaudio/best'
                 ydl_opts['postprocessors'] = [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}]
-            
             elif "480p" in format_option:
-                # خيار 480 (السريع)
                 ydl_opts['format'] = 'bestvideo[height<=480][ext=mp4]+bestaudio[ext=m4a]/best[height<=480][ext=mp4]/best'
-            
             else:
-                # خيار 720 (الافتراضي)
                 ydl_opts['format'] = 'bestvideo[height<=720][ext=mp4]+bestaudio[ext=m4a]/best[height<=720][ext=mp4]/best'
 
             try:
@@ -222,7 +214,7 @@ def main_app():
             
             progress_bar.progress(current_num / total_links)
 
-        # تنظيف الملف المؤقت
+        # تنظيف الملفات المؤقتة
         if os.path.exists(TEMP_COOKIE_FILE):
             os.remove(TEMP_COOKIE_FILE)
 
