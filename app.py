@@ -9,6 +9,7 @@ import json
 st.set_page_config(page_title="Teams Pro Batch 📦", page_icon="🚀")
 
 COOKIE_FILE = 'saved_cookie.json'
+ZIP_NAME = "Lectures_Bundle" # الاسم الثابت للملف المضغوط
 
 # --- 2. دوال حفظ واسترجاع الكوكيز ---
 def load_saved_cookie():
@@ -63,6 +64,7 @@ def show_footer():
 
 # --- 5. دوال مساعدة (Zip & Clear) ---
 def zip_downloads(folder_path, output_filename):
+    # الدالة دي بتعمل ملف zip باسم output_filename.zip
     shutil.make_archive(output_filename, 'zip', folder_path)
     return f"{output_filename}.zip"
 
@@ -85,13 +87,12 @@ def main_app():
     if not shutil.which("ffmpeg"):
         st.warning("⚠️ Server is installing FFmpeg... please wait.")
 
-    # تحميل الكوكي القديم (لو موجود)
+    # تحميل الكوكي القديم
     saved_cookie = load_saved_cookie()
     
     # === القسم الأول: إعدادات الكوكيز ===
     st.subheader("1️⃣ Configuration")
     
-    # ملحوظة: value=saved_cookie بتعرض الكوكي القديم في الخانة
     cookie_input = st.text_input("🍪 Cookie (Paste here)", value=saved_cookie)
     
     # زرار الحفظ المستقل
@@ -108,12 +109,28 @@ def main_app():
 
     # === القسم الثاني: التحميل ===
     st.subheader("2️⃣ Downloads")
+
+    # 🔥 ميزة استعادة التحميل (Resume) 🔥
+    # لو فيه ملف zip موجود من قبل كدة (مثلاً النت قطع)، اظهره علطول
+    existing_zip = f"{ZIP_NAME}.zip"
+    if os.path.exists(existing_zip):
+        st.info("💡 **Found a finished download!** (Did you refresh? You can download it now)")
+        with open(existing_zip, "rb") as f:
+            st.download_button(
+                label="🔄 Resume Download (Last Zip)",
+                data=f,
+                file_name=f"Lectures_Recovered_{int(time.time())}.zip",
+                mime="application/zip",
+                type="secondary"
+            )
+        st.markdown("---")
+
     urls_text = st.text_area("🔗 Video URLs (Paste links line by line)", height=150)
     option = st.radio("Choose Format:", ("Video (MP4)", "Audio (MP3)"), horizontal=True)
 
     # زرار بدء التحميل
     if st.button("Start Batch Download 🚀", type="primary"):
-        # بنستخدم الكوكي اللي في الخانة، أو المحفوظ لو الخانة فاضية (احتياطي)
+        # بنستخدم الكوكي اللي في الخانة، أو المحفوظ لو الخانة فاضية
         final_cookie = cookie_input or saved_cookie
         
         if not final_cookie:
@@ -124,7 +141,7 @@ def main_app():
             st.warning("⚠️ Please enter video URLs in Step 2!")
             return
 
-        # حفظ الكوكيز احتياطي برضه لو المستخدم نسي يدوس Save فوق
+        # حفظ الكوكيز احتياطي
         save_new_cookie(final_cookie)
         
         url_list = urls_text.strip().split('\n')
@@ -177,7 +194,9 @@ def main_app():
         # النهاية والضغط
         if success_count > 0:
             status_text.success("✅ All Done! Zipping files...")
-            zip_file = zip_downloads(download_folder, "Lectures_Bundle")
+            
+            # ضغط الملفات بالاسم الثابت عشان نقدر نسترجعه لو النت قطع
+            zip_file = zip_downloads(download_folder, ZIP_NAME)
             
             with open(zip_file, "rb") as f:
                 st.download_button(
