@@ -82,18 +82,30 @@ def zip_downloads(folder_path, output_filename):
     return f"{output_filename}.zip"
 
 def clear_downloads(folder_path):
+    """🔥 دالة التنظيف الآمنة لمنع الـ OSError 🔥"""
     if os.path.exists(folder_path):
-        shutil.rmtree(folder_path)
-    os.makedirs(folder_path)
+        try:
+            shutil.rmtree(folder_path) # حاول تمسح الفولدر
+        except Exception:
+            # لو الفولدر معلق، حاول تمسح الملفات اللي جواه واحد واحد
+            try:
+                for filename in os.listdir(folder_path):
+                    file_path = os.path.join(folder_path, filename)
+                    if os.path.isfile(file_path):
+                        os.unlink(file_path)
+            except:
+                pass # لو فشل خالص، كمل ولا يهمك
+            
+    if not os.path.exists(folder_path):
+        os.makedirs(folder_path)
 
 def is_file_valid(folder_path):
-    """🔥 الحساس الذكي: بيتأكد إن الملف حجمه مش وهمي 🔥"""
-    # بندور على أي ملف نزل
+    """🔥 الحساس الذكي لاكتشاف الكوكيز الميتة 🔥"""
     for root, dirs, files in os.walk(folder_path):
         for file in files:
             file_path = os.path.join(root, file)
-            size_mb = os.path.getsize(file_path) / (1024 * 1024) # تحويل لميجا
-            # لو الملف أصغر من 1 ميجا، يبقى ده صفحة HTML مش فيديو
+            size_mb = os.path.getsize(file_path) / (1024 * 1024)
+            # لو الملف أصغر من 1 ميجا يبقى ده HTML Login Page
             if size_mb < 1.0: 
                 return False, size_mb
     return True, 0
@@ -104,7 +116,7 @@ def main_app():
         st.session_state["password_correct"] = False
         st.rerun()
 
-    st.title("📦 Teams Downloader")
+    st.title("📦 Teams VIP")
     st.markdown("---")
 
     if not shutil.which("ffmpeg"):
@@ -130,7 +142,7 @@ def main_app():
     # === القسم الثاني: التحميل ===
     st.subheader("2️⃣ Downloads")
 
-    # استعادة الملف القديم
+    # استعادة التحميل السابق (لو موجود)
     existing_zip = f"{ZIP_NAME}.zip"
     if os.path.exists(existing_zip):
         try:
@@ -138,18 +150,21 @@ def main_app():
                 st.info("💡 **Found a finished download!** (You can download it now)")
                 st.download_button(label="🔄 Resume Download (Last Zip)", data=f, file_name=f"Lectures_Recovered_{int(time.time())}.zip", mime="application/zip", type="secondary")
             st.markdown("---")
-        except Exception:
-            os.remove(existing_zip) 
+        except:
+            # لو الملف بايظ امسحه
+            try: os.remove(existing_zip)
+            except: pass
 
     urls_text = st.text_area("🔗 Video URLs (Paste links line by line)", height=150)
     
+    # خيارات الجودة
     format_option = st.radio(
         "Choose Quality:",
         ("🎥 Video (720p - HD)", "📱 Video (480p - Fast)", "🎧 Audio Only (MP3)"),
         horizontal=True
     )
 
-    if st.button("Start Batch Download 🚀", type="primary"):
+    if st.button("Start Download 🚀", type="primary"):
         final_cookie = cookie_input or saved_cookie
         
         if not final_cookie:
@@ -160,9 +175,10 @@ def main_app():
             st.warning("⚠️ Please enter video URLs in Step 2!")
             return
 
-        # تنظيف القديم
+        # 🔥 خطوة مهمة: مسح الـ Zip القديم عشان نبدأ على نظافة
         if os.path.exists(existing_zip):
-            os.remove(existing_zip)
+            try: os.remove(existing_zip)
+            except: pass
 
         save_new_cookie(final_cookie)
         create_netscape_cookie_file(final_cookie)
@@ -177,15 +193,14 @@ def main_app():
         progress_bar = st.progress(0)
         status_text = st.empty()
         success_count = 0
-        cookie_died = False # متغير حالة الكوكيز
+        cookie_died = False
 
         for i, url in enumerate(url_list):
             url = url.strip()
             if not url: continue
             
-            # 🛑 لو الكوكيز مات، نوقف اللوب فوراً ومنكملش تحميل
-            if cookie_died:
-                break
+            # لو الكوكيز مات، وقف اللوب فوراً
+            if cookie_died: break
 
             current_num = i + 1
             status_text.markdown(f"**⏳ Processing {current_num}/{total_links}...**")
@@ -200,17 +215,17 @@ def main_app():
                 'no_warnings': True,
             }
 
+            # 🔥 ضبط الجودة (Fix for 480p & OSError) 🔥
             if "Audio" in format_option:
                 ydl_opts['format'] = 'bestaudio/best'
                 ydl_opts['postprocessors'] = [{'key': 'FFmpegExtractAudio','preferredcodec': 'mp3','preferredquality': '192'}]
+            
             elif "480p" in format_option:
-                # التعديل: شيلنا شرط [ext=mp4] عشان يقبل أي صيغة متاحة ويحولها هو
+                # التعديل الحاسم: شيلنا [ext=mp4] وضفنا merge_output_format
                 ydl_opts['format'] = 'bestvideo[height<=480]+bestaudio/best[height<=480]/best'
-                # أمر إضافي: دمج الصوت والصورة وإخراج الناتج MP4 غصب عنه
                 ydl_opts['merge_output_format'] = 'mp4'
             
             else:
-                # نفس الكلام للـ 720p
                 ydl_opts['format'] = 'bestvideo[height<=720]+bestaudio/best[height<=720]/best'
                 ydl_opts['merge_output_format'] = 'mp4'
 
@@ -218,18 +233,16 @@ def main_app():
                 with yt_dlp.YoutubeDL(ydl_opts) as ydl:
                     ydl.download([url])
                 
-                # 🔥🔥 الحساس الذكي (Security Check) 🔥🔥
-                # بعد ما أول ملف ينزل، نتأكد من حجمه
+                # 🔥 تشغيل الحساس الذكي 🔥
                 valid, size = is_file_valid(download_folder)
                 if not valid:
                     st.error(f"🚨 **STOP! Cookie is DEAD.**")
-                    st.error(f"⚠️ File downloaded is only {size:.2f} MB (It's a fake Login Page).")
-                    st.error("👉 Please refresh your browser, get a NEW cookie, and try again.")
+                    st.error(f"⚠️ Downloaded file is only {size:.2f} MB (Fake Login Page).")
+                    st.error("👉 Refresh browser -> Network -> Use 'Doc' filter -> Get Headers Cookie.")
                     
-                    # تنظيف الفوضى
-                    clear_downloads(download_folder)
+                    clear_downloads(download_folder) # امسح الفوضى
                     cookie_died = True
-                    break # خروج من اللوب
+                    break # اخرج من اللوب
                 
                 success_count += 1
                 
@@ -240,11 +253,12 @@ def main_app():
 
         # تنظيف الملفات المؤقتة
         if os.path.exists(TEMP_COOKIE_FILE):
-            os.remove(TEMP_COOKIE_FILE)
+            try: os.remove(TEMP_COOKIE_FILE)
+            except: pass
 
         # النتيجة النهائية
         if cookie_died:
-            status_text.error("⛔ Process stopped due to dead cookie.")
+            status_text.error("⛔ Process stopped. Please update your cookie.")
         elif success_count > 0:
             status_text.success("✅ All Done! Zipping files...")
             zip_file = zip_downloads(download_folder, ZIP_NAME)
@@ -262,4 +276,3 @@ def main_app():
 
 if check_password():
     main_app()
-
